@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import Header from "../components/StaffDashboard/Header";
+import Header from "../components/staffDashboard/Header";
 import POS from "./POS";
 import OrderHistory from "../components/StaffDashboard/OrderHistory";
 import ReceiptModal from "../components/StaffDashboard/ReceiptModal";
