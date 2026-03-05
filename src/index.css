@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+/* ================= FONTS ================= */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* ================= GLOBAL STYLES ================= */
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #f3f4f6;
+  color: #1f2937;
+  transition: background-color 0.3s, color 0.3s;
+    overflow-x: hidden;
+}
+
+/* Dark mode */
+.dark body {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+/* ================= REUSABLE CLASSES ================= */
+
+.card {
+  @apply bg-white rounded-xl p-6 shadow-md transition-all duration-300;
+}
+
+.dark .card {
+  @apply bg-slate-800;
+}
+
+.card:hover {
+  @apply shadow-lg;
+  transform: translateY(-2px);
+}
+
+.btn-primary {
+  @apply bg-orange-500 text-white px-4 py-2 rounded-lg font-medium transition-all duration-300;
+}
+
+.btn-primary:hover {
+  @apply bg-orange-600 shadow-lg;
+}
+
+.btn-secondary {
+  @apply bg-slate-200 text-slate-800 px-4 py-2 rounded-lg font-medium transition-all duration-300;
+}
+
+.dark .btn-secondary {
+  @apply bg-slate-700 text-slate-200;
+}
+
+.btn-secondary:hover {
+  @apply bg-slate-300;
+}
+
+.dark .btn-secondary:hover {
+  @apply bg-slate-600;
+}
+
+.input-field {
+  @apply w-full px-4 py-3 rounded-lg border border-gray-300 bg-white transition-all duration-300;
+}
+
+.dark .input-field {
+  @apply bg-slate-700 border-slate-600 text-white;
+}
+
+.input-field:focus {
+  @apply outline-none border-orange-500 ring-2 ring-orange-500/30;
+}
+
+.input-label {
+  @apply block text-sm font-medium text-gray-600 mb-2;
+}
+
+.dark .input-label {
+  @apply text-gray-300;
+}
+
+/* ================= SCROLLBAR ================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-200;
+}
+
+.dark ::-webkit-scrollbar-track {
+  @apply bg-slate-800;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #f97316, #ea580c);
+  @apply rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-orange-400;
+}
+
+/* ================= ANIMATIONS ================= */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-pulse-slow {
+  animation: pulse 2s infinite;
+}
+
+/* ================= SELECTION ================= */
+
+::selection {
+  @apply bg-orange-500 text-white;
+}
+
+/* ================= UTILITIES ================= */
+
+.text-gradient {
+  @apply bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent;
+}
+
+.bg-gradient-primary {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+}
+
+.shadow-card {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.dark .shadow-card {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+/* Hide Scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide Scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
