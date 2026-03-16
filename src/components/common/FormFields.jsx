@@ -6,6 +6,7 @@ export default function FormFields({
   setData,
   categories = [],
 }) {
+
   /* ------------------ Handlers ------------------ */
 
   const handleChange = (e) => {
@@ -28,10 +29,12 @@ export default function FormFields({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const preview = URL.createObjectURL(file);
+
     setData((prev) => ({
       ...prev,
       image: file,
-      preview: URL.createObjectURL(file),
+      preview,
     }));
   };
 
@@ -56,15 +59,16 @@ export default function FormFields({
         <select
           id={name}
           name={name}
-          value={data[name]?._id || data[name] || ""}
+          value={data[name] || ""}
           onChange={handleChange}
           required={required}
           className="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 transition"
         >
           <option value="">Select {label}</option>
+
           {options.map((opt) => (
-            <option key={opt._id} value={opt._id}>
-              {opt.name}
+            <option key={opt._id || opt.value} value={opt._id || opt.value}>
+              {opt.name || opt.label}
             </option>
           ))}
         </select>
@@ -88,6 +92,7 @@ export default function FormFields({
     if (!data.image) return null;
 
     if (typeof data.image === "string") return data.image;
+
     if (data.preview) return data.preview;
 
     return null;
@@ -122,17 +127,22 @@ export default function FormFields({
     <div className="space-y-4">{children}</div>
   );
 
-  /* ------------------ Switch Rendering ------------------ */
+  /* ------------------ Form Types ------------------ */
 
   switch (type) {
+
+    /* ---------- CATEGORY ---------- */
+
     case "category":
       return (
         <Section>
           <Input name="name" label="Category Name" required />
+
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Description
             </label>
+
             <textarea
               name="description"
               value={data.description ?? ""}
@@ -141,9 +151,12 @@ export default function FormFields({
               className="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 transition"
             />
           </div>
+
           <ImageUpload />
         </Section>
       );
+
+    /* ---------- ITEM ---------- */
 
     case "item":
       return (
@@ -155,6 +168,7 @@ export default function FormFields({
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Description
             </label>
+
             <textarea
               name="description"
               value={data.description ?? ""}
@@ -176,8 +190,8 @@ export default function FormFields({
               name="type"
               label="Type"
               options={[
-                { _id: "veg", name: "Veg" },
-                { _id: "non-veg", name: "Non-Veg" },
+                { value: "veg", label: "Veg" },
+                { value: "non-veg", label: "Non-Veg" },
               ]}
             />
 
@@ -190,6 +204,7 @@ export default function FormFields({
                 id="isPopular"
                 className="w-4 h-4 accent-orange-500"
               />
+
               <label
                 htmlFor="isPopular"
                 className="text-sm text-gray-700 dark:text-gray-300"
@@ -203,6 +218,8 @@ export default function FormFields({
         </Section>
       );
 
+    /* ---------- TABLE ---------- */
+
     case "table":
       return (
         <Section>
@@ -211,22 +228,33 @@ export default function FormFields({
         </Section>
       );
 
+    /* ---------- TAX ---------- */
+
     case "tax":
       return (
         <Section>
           <Input name="name" label="Tax Name" required />
-          <Input name="rate" label="Rate (%)" type="number" required />
+          <Input name="percentage" label="Rate (%)" type="number" required />
         </Section>
       );
+
+    /* ---------- STAFF ---------- */
 
     case "staff":
       return (
         <Section>
           <Input name="name" label="Staff Name" required />
           <Input name="email" label="Email Address" type="email" required />
+
           {!data._id && (
-            <Input name="password" label="Password" type="password" required />
+            <Input
+              name="password"
+              label="Password"
+              type="password"
+              required
+            />
           )}
+
           <Input name="phone" label="Phone Number" type="tel" />
         </Section>
       );

@@ -9,19 +9,20 @@ const OrderHistory = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [orderTypeFilter, setOrderTypeFilter] = useState("all");
 
-  // ================= FETCH =================
+  // ================= FETCH ORDERS =================
   const fetchOrders = async () => {
     try {
       setLoading(true);
       const { data } = await ordersAPI.getAll();
 
+      // Sort newest first
       const sorted = data.sort(
         (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
       );
-
       setOrders(sorted);
     } catch (error) {
-      toast.error("Failed to fetch history");
+      console.error(error);
+      toast.error("Failed to fetch orders.");
     } finally {
       setLoading(false);
     }
@@ -31,7 +32,7 @@ const OrderHistory = () => {
     fetchOrders();
   }, []);
 
-  // ================= TODAY FILTER =================
+  // ================= TODAY'S ORDERS =================
   const todaysOrders = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -47,42 +48,47 @@ const OrderHistory = () => {
 
   // ================= SEARCH + TYPE FILTER =================
   const filteredOrders = useMemo(() => {
-    return todaysOrders.filter((o) => {
+    return todaysOrders.filter((order) => {
       const matchesSearch =
-        o.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        o._id.includes(searchTerm);
+        order.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order._id.includes(searchTerm);
 
       const matchesType =
         orderTypeFilter === "all" ||
-        (orderTypeFilter === "dine-in" && o.table) ||
-        (orderTypeFilter === "takeaway" && !o.table);
+        (orderTypeFilter === "dine-in" && order.table) ||
+        (orderTypeFilter === "takeaway" && !order.table);
 
       return matchesSearch && matchesType;
     });
   }, [todaysOrders, searchTerm, orderTypeFilter]);
-
+const formatCurrency = (amount) => `₹${Number(amount).toFixed(2)}`;
   // ================= CALCULATIONS =================
-  const totalCash = todaysOrders
-    .filter(
-      (o) =>
-        o.paymentMethod?.toLowerCase() === "cash" &&
-        o.paymentStatus === "paid"
-    )
-    .reduce((sum, o) => sum + o.totalAmount, 0);
+  const totalCash = useMemo(
+    () =>
+      todaysOrders
+        .filter(
+          (o) => o.paymentMethod?.toLowerCase() === "cash" && o.paymentStatus === "paid"
+        )
+        .reduce((sum, o) => sum + o.totalAmount, 0),
+    [todaysOrders]
+  );
 
-  const totalOnline = todaysOrders
-    .filter(
-      (o) =>
-        o.paymentMethod?.toLowerCase() === "online" &&
-        o.paymentStatus === "paid"
-    )
-    .reduce((sum, o) => sum + o.totalAmount, 0);
+  const totalOnline = useMemo(
+    () =>
+      todaysOrders
+        .filter(
+          (o) => o.paymentMethod?.toLowerCase() === "online" && o.paymentStatus === "paid"
+        )
+        .reduce((sum, o) => sum + o.totalAmount, 0),
+    [todaysOrders]
+  );
 
   const totalEarnings = totalCash + totalOnline;
 
-  const totalCustomers = new Set(
-    todaysOrders.map((o) => o.phone || o._id)
-  ).size;
+  const totalCustomers = useMemo(
+    () => new Set(todaysOrders.map((o) => o.phone || o._id)).size,
+    [todaysOrders]
+  );
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -102,18 +108,13 @@ const OrderHistory = () => {
 
       {/* ================= HEADER ================= */}
       <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-        <h2 className="text-3xl font-bold">
-          Today's Order History
-        </h2>
+        <h2 className="text-3xl font-bold">Today's Order History</h2>
 
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex gap-3 flex-wrap items-center">
 
           {/* SEARCH */}
           <div className="relative">
-            <Search
-              className="absolute left-3 top-3 text-gray-400"
-              size={18}
-            />
+            <Search className="absolute left-3 top-3 text-gray-400" size={18} />
             <input
               type="text"
               placeholder="Search Order ID or Name..."
@@ -135,11 +136,7 @@ const OrderHistory = () => {
                     : "bg-gray-800 border border-gray-700 text-gray-300"
                 }`}
               >
-                {type === "all"
-                  ? "All"
-                  : type === "dine-in"
-                  ? "Dine-In"
-                  : "Takeaway"}
+                {type === "all" ? "All" : type === "dine-in" ? "Dine-In" : "Takeaway"}
               </button>
             ))}
           </div>
@@ -147,158 +144,106 @@ const OrderHistory = () => {
           {/* REFRESH */}
           <button
             onClick={fetchOrders}
-            className="p-2 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700"
+            className="p-2 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 transition-colors"
           >
-            <RefreshCw
-              size={20}
-              className={loading ? "animate-spin" : ""}
-            />
+            <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
           </button>
         </div>
       </div>
 
       {/* ================= SUMMARY ================= */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-5">
-          <h3 className="text-gray-400 text-sm">Cash Earnings</h3>
-          <p className="text-2xl font-bold text-green-400 mt-2">
-            ₹{totalCash}
-          </p>
-        </div>
-
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-5">
-          <h3 className="text-gray-400 text-sm">Online Earnings</h3>
-          <p className="text-2xl font-bold text-blue-400 mt-2">
-            ₹{totalOnline}
-          </p>
-        </div>
-
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-5">
-          <h3 className="text-gray-400 text-sm">Total Earnings</h3>
-          <p className="text-2xl font-bold text-orange-400 mt-2">
-            ₹{totalEarnings}
-          </p>
-        </div>
-
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-5">
-          <h3 className="text-gray-400 text-sm">Total Customers</h3>
-          <p className="text-2xl font-bold text-purple-400 mt-2">
-            {totalCustomers}
-          </p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <SummaryCard title="Cash Earnings" amount={formatCurrency(totalCash)} color="green-400" />
+<SummaryCard title="Online Earnings" amount={formatCurrency(totalOnline)} color="blue-400" />
+<SummaryCard title="Total Earnings" amount={formatCurrency(totalEarnings)} color="orange-400" />
+<SummaryCard title="Total Customers" amount={totalCustomers} color="purple-400" />
       </div>
 
       {/* ================= TABLE ================= */}
       <div className="bg-gray-800 rounded-xl border border-gray-700 flex-1 overflow-hidden">
-        <div className="h-full overflow-auto">
-
-          <table className="min-w-full text-left border-collapse">
-            <thead>
-              <tr className="text-gray-300 uppercase text-xs font-bold">
-                {[
-                  "Order ID",
-                  "Time",
-                  "Customer",
-                  "Order Type",
-                  "Items",
-                  "Total",
-                  "Method",
-                  "Status",
-                  "Action",
-                ].map((head, index) => (
-                  <th
-                    key={index}
-                    className="p-4 bg-gray-700 sticky top-0 z-20"
-                  >
-                    {head}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-gray-700 text-sm text-gray-300">
-              {filteredOrders.map((order) => (
-                <tr
-                  key={order._id}
-                  className="hover:bg-gray-700/50 transition-colors"
-                >
-                  <td className="p-4 font-mono text-orange-400 whitespace-nowrap">
-                    #{order._id.slice(-6).toUpperCase()}
-                  </td>
-
-                  <td className="p-4 whitespace-nowrap">
-                    {new Date(order.createdAt).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                    <div className="text-xs text-gray-500">
-                      {new Date(order.createdAt).toLocaleDateString()}
-                    </div>
-                  </td>
-
-                  <td className="p-4">
-                    <div className="font-medium text-white">
-                      {order.customerName}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {order.phone}
-                    </div>
-                  </td>
-
-                  {/* DINE-IN / TAKEAWAY */}
-                  <td className="p-4 whitespace-nowrap">
-                    {order.table ? (
-                      <div className="flex flex-col">
-                        <span className="font-semibold">
-                          {order.table.name}
-                        </span>
-                        <span className="text-xs bg-blue-600 px-2 py-0.5 rounded-full mt-1 w-fit">
-                          Dine-In
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-xs bg-gray-600 px-2 py-0.5 rounded-full">
-                        Takeaway
-                      </span>
-                    )}
-                  </td>
-
-                  <td className="p-4 whitespace-nowrap">
-                    {order.items?.length || 0} Items
-                  </td>
-
-                  <td className="p-4 font-bold text-white whitespace-nowrap">
-                    ₹{order.totalAmount}
-                  </td>
-
-                  <td className="p-4 capitalize whitespace-nowrap">
-                    {order.paymentMethod}
-                  </td>
-
-                  <td className="p-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-bold border ${getStatusColor(
-                        order.paymentStatus
-                      )}`}
-                    >
-                      {order.paymentStatus}
-                    </span>
-                  </td>
-
-                  <td className="p-4 whitespace-nowrap">
-                    <button className="p-2 hover:bg-gray-600 rounded text-gray-400 hover:text-white transition-colors">
-                      <Eye size={18} />
-                    </button>
-                  </td>
+        {loading ? (
+          <div className="flex items-center justify-center h-64 text-gray-400">Loading...</div>
+        ) : filteredOrders.length === 0 ? (
+          <div className="flex items-center justify-center h-64 text-gray-400">
+            No orders found.
+          </div>
+        ) : (
+          <div className="h-full overflow-auto">
+            <table className="min-w-full text-left border-collapse">
+              <thead>
+                <tr className="text-gray-300 uppercase text-xs font-bold">
+                  {[
+                    "Order ID",
+                    "Time",
+                    "Customer",
+                    "Order Type",
+                    "Items",
+                    "Total",
+                    "Method",
+                    "Status",
+                    "Action",
+                  ].map((head, idx) => (
+                    <th key={idx} className="p-4 bg-gray-700 sticky top-0 z-20">{head}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
+              </thead>
 
-          </table>
-        </div>
+              <tbody className="divide-y divide-gray-700 text-sm text-gray-300">
+                {filteredOrders.map((order) => (
+                  <tr key={order._id} className="hover:bg-gray-700/50 transition-colors">
+                    <td className="p-4 font-mono text-orange-400 whitespace-nowrap">
+                      #{order._id.slice(-6).toUpperCase()}
+                    </td>
+                    <td className="p-4 whitespace-nowrap">
+                      {new Date(order.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      <div className="text-xs text-gray-500">
+                        {new Date(order.createdAt).toLocaleDateString()}
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <div className="font-medium text-white">{order.customerName || "N/A"}</div>
+                      <div className="text-xs text-gray-500">{order.phone || "-"}</div>
+                    </td>
+                    <td className="p-4 whitespace-nowrap">
+                      {order.table ? (
+                        <div className="flex flex-col">
+                          <span className="font-semibold">{order.table.name}</span>
+                          <span className="text-xs bg-blue-600 px-2 py-0.5 rounded-full mt-1 w-fit">Dine-In</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs bg-gray-600 px-2 py-0.5 rounded-full">Takeaway</span>
+                      )}
+                    </td>
+                    <td className="p-4 whitespace-nowrap">{order.items?.length || 0} Items</td>
+                    <td className="p-4 font-bold text-white whitespace-nowrap">₹{order.totalAmount}</td>
+                    <td className="p-4 capitalize whitespace-nowrap">{order.paymentMethod || "N/A"}</td>
+                    <td className="p-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 rounded-full text-xs font-bold border ${getStatusColor(order.paymentStatus)}`}>
+                        {order.paymentStatus}
+                      </span>
+                    </td>
+                    <td className="p-4 whitespace-nowrap">
+                      <button className="p-2 hover:bg-gray-600 rounded text-gray-400 hover:text-white transition-colors">
+                        <Eye size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
 };
+
+// ================= SUMMARY CARD COMPONENT =================
+const SummaryCard = ({ title, amount, color }) => (
+  <div className="bg-gray-800 border border-gray-700 rounded-xl p-5">
+    <h3 className="text-gray-400 text-sm">{title}</h3>
+    <p className={`text-2xl font-bold mt-2 text-${color}`}>{amount}</p>
+  </div>
+);
 
 export default OrderHistory;

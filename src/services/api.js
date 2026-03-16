@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+  baseURL: "http://localhost:5000/api",
   timeout: 30000,
 });
 
@@ -48,7 +48,8 @@ api.interceptors.response.use(
 export const authAPI = {
   login: (data) => api.post("/auth/login", data),
   register: (data) => api.post("/auth/register", data),
-
+getCafeStatus: () => api.get('/cafe-status'),
+  updateCafeStatus: (data) => api.put('/cafe-status', data),
   // --- Staff Management (Owner Only) ---
   getStaff: () => api.get("/auth"), // Get all staff
   updateStaff: (id, data) => api.put(`/auth/${id}`, data), // Update staff
@@ -90,14 +91,55 @@ export const tablesAPI = {
 
 // ORDERS APIs
 export const ordersAPI = {
-  getAll: (params) => api.get("/orders", { params }),
-  getById: (id) => api.get(`/orders/${id}`),
-  create: (data) => api.post("/orders", data),
-  update: (id, data) => api.put(`/orders/${id}`, data),
-  updateStatus: (id, status) => api.put(`/orders/${id}`, { status }), // Added for Kitchen
-  getStats: () => api.get("/orders/stats"),
-};
 
+  // Get all orders
+  getAll: (params) => api.get("/orders", { params }),
+
+  // Get single order
+  getById: (id) => api.get(`/orders/${id}`),
+
+  // Create order
+  create: (data) => api.post("/orders", data),
+completeOrder: (id) => api.put(`/orders/complete/${id}`),
+  // Update order status
+  updateStatus: (id, status) =>
+    api.put(`/orders/status/${id}`, { status }),
+
+  // Staff approves order
+  approveOrder: (id) =>
+    api.put(`/orders/approve/${id}`),
+
+  // Cancel order
+  cancelOrder: (id, reason) =>
+    api.put(`/orders/cancel/${id}`, { reason }),
+
+  // Stats
+  getStats: () =>
+    api.get("/orders/stats"),
+
+  // Customer orders
+  getCustomerOrders: (params) =>
+    api.get("/orders/customer", { params }),
+
+  // Staff orders
+  getStaffOrders: () =>
+    api.get("/orders", {
+      params: { source: "staff" }
+    }),
+
+  // Counter orders
+  getCounterOrders: () =>
+    api.get("/orders", {
+      params: { source: "counter" }
+    }),
+
+  // Pending approvals
+  getPendingApprovals: () =>
+    api.get("/orders", {
+      params: { status: "pending", source: "customer" }
+    })
+
+};
 // TAXES APIs
 export const taxesAPI = {
   getAll: () => api.get("/taxes"),

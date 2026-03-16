@@ -53,8 +53,19 @@ const Header = ({ activeTab, setActiveTab }) => {
           >
             Order History
           </button>
+           <button
+            onClick={() => setActiveTab("counter")}
+            className={`px-5 py-1.5 rounded-md text-sm font-semibold transition-all ${
+              activeTab === "counter"
+                ? "bg-orange-500 text-white shadow-md"
+                : "text-gray-400 hover:text-white"
+            }`}
+          >
+  Customer Orders
+          </button>
         </div>
       </div>
+      
 
       {/* RIGHT SIDE */}
       <div className="flex items-center gap-6">
