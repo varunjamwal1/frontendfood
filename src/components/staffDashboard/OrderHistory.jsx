@@ -1,249 +1,248 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { ordersAPI } from "../../services/api";
 import { toast } from "react-hot-toast";
-import { Eye, RefreshCw, Search } from "lucide-react";
+import OrderHeader from "./OrderHistory/OrderHeader";
+import OrderMetrics from "./OrderHistory/OrderMetrics";
+import OrderFilters from "./OrderHistory/OrderFilters";
+import OrdersTable from "./OrderHistory/OrdersTable";
+import OrderModal from "./OrderHistory/OrderModal";
+import LoadingSkeleton from "./OrderHistory/LoadingSkeleton";
+import ErrorState from "./OrderHistory/EmptyState";
 
 const OrderHistory = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [dateRange, setDateRange] = useState("today");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [orderTypeFilter, setOrderTypeFilter] = useState("all");
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [page, setPage] = useState(1);
 
-  // ================= FETCH ORDERS =================
-  const fetchOrders = async () => {
+  const searchTimeoutRef = useRef(null);
+  const tableRef = useRef(null);
+
+  // ================= FETCH =================
+  const fetchOrders = useCallback(async (showToast = true) => {
     try {
       setLoading(true);
+      setError(null);
+
       const { data } = await ordersAPI.getAll();
 
-      // Sort newest first
-      const sorted = data.sort(
+      if (!Array.isArray(data)) throw new Error("Invalid orders data");
+
+      const sorted = [...data].sort(
         (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
       );
+
       setOrders(sorted);
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to fetch orders.");
+      setPage(1);
+
+      if (showToast) toast.success("Orders updated");
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Failed to fetch");
+      toast.error("Failed to fetch orders");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [fetchOrders]);
 
-  // ================= TODAY'S ORDERS =================
-  const todaysOrders = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  // ================= SEARCH =================
+  useEffect(() => {
+    clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => setPage(1), 300);
+    return () => clearTimeout(searchTimeoutRef.current);
+  }, [searchTerm]);
 
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
+  // ================= DATE FILTER (FIXED BUG) =================
+  const dateFilteredOrders = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
 
-    return orders.filter((order) => {
-      const orderDate = new Date(order.createdAt);
-      return orderDate >= today && orderDate < tomorrow;
-    });
-  }, [orders]);
+    let start = new Date(0);
+    let end = new Date();
 
-  // ================= SEARCH + TYPE FILTER =================
-  const filteredOrders = useMemo(() => {
-    return todaysOrders.filter((order) => {
-      const matchesSearch =
-        order.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order._id.includes(searchTerm);
-
-      const matchesType =
-        orderTypeFilter === "all" ||
-        (orderTypeFilter === "dine-in" && order.table) ||
-        (orderTypeFilter === "takeaway" && !order.table);
-
-      return matchesSearch && matchesType;
-    });
-  }, [todaysOrders, searchTerm, orderTypeFilter]);
-const formatCurrency = (amount) => `₹${Number(amount).toFixed(2)}`;
-  // ================= CALCULATIONS =================
-  const totalCash = useMemo(
-    () =>
-      todaysOrders
-        .filter(
-          (o) => o.paymentMethod?.toLowerCase() === "cash" && o.paymentStatus === "paid"
-        )
-        .reduce((sum, o) => sum + o.totalAmount, 0),
-    [todaysOrders]
-  );
-
-  const totalOnline = useMemo(
-    () =>
-      todaysOrders
-        .filter(
-          (o) => o.paymentMethod?.toLowerCase() === "online" && o.paymentStatus === "paid"
-        )
-        .reduce((sum, o) => sum + o.totalAmount, 0),
-    [todaysOrders]
-  );
-
-  const totalEarnings = totalCash + totalOnline;
-
-  const totalCustomers = useMemo(
-    () => new Set(todaysOrders.map((o) => o.phone || o._id)).size,
-    [todaysOrders]
-  );
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "paid":
-        return "bg-green-100 text-green-700 border-green-200";
-      case "pending":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "failed":
-        return "bg-red-100 text-red-700 border-red-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
+    if (dateRange === "today") {
+      start = new Date(now);
+      end = new Date(now);
+      end.setDate(end.getDate() + 1);
     }
+
+    if (dateRange === "week") {
+      start = new Date(now);
+      start.setDate(start.getDate() - start.getDay());
+      end = new Date();
+    }
+
+    if (dateRange === "month") {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date();
+    }
+
+    return orders.filter((o) => {
+      const d = new Date(o.createdAt);
+      return d >= start && d < end;
+    });
+  }, [orders, dateRange]);
+
+  // ================= FILTER =================
+  const filteredOrders = useMemo(() => {
+    const search = searchTerm.toLowerCase();
+
+    return dateFilteredOrders.filter((order) => {
+      return (
+        ((order.customerName || "").toLowerCase().includes(search) ||
+          (order.phone || "").includes(searchTerm) ||
+          (order._id || "").toLowerCase().includes(search)) &&
+        (statusFilter === "all" || order.paymentStatus === statusFilter) &&
+        (orderTypeFilter === "all" ||
+          (orderTypeFilter === "dine-in" && order.table) ||
+          (orderTypeFilter === "takeaway" && !order.table))
+      );
+    });
+  }, [dateFilteredOrders, searchTerm, statusFilter, orderTypeFilter]);
+
+  // ================= PAGINATION =================
+  const itemsPerPage = 10;
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / itemsPerPage));
+
+  const paginatedOrders = useMemo(() => {
+    const start = (page - 1) * itemsPerPage;
+    return filteredOrders.slice(start, start + itemsPerPage);
+  }, [filteredOrders, page]);
+
+  // ================= METRICS =================
+  const metrics = useMemo(() => {
+    const paid = filteredOrders.filter((o) => o.paymentStatus === "paid");
+
+    return {
+      totalRevenue: paid.reduce((s, o) => s + (+o.totalAmount || 0), 0),
+      cashRevenue: paid
+        .filter((o) => o.paymentMethod === "cash")
+        .reduce((s, o) => s + (+o.totalAmount || 0), 0),
+      uniqueCustomers: new Set(
+        filteredOrders.map((o) => o.phone || o.customerName)
+      ).size,
+      totalOrders: filteredOrders.length,
+      pendingOrders: filteredOrders.filter(
+        (o) => o.paymentStatus === "pending"
+      ).length,
+      avgOrderValue:
+        paid.length > 0
+          ? paid.reduce((s, o) => s + (+o.totalAmount || 0), 0) / paid.length
+          : 0,
+    };
+  }, [filteredOrders]);
+
+  // ================= UTILS =================
+  const formatCurrency = (val) =>
+    `₹${Number(val || 0).toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+    })}`;
+
+  const formatTime = (d) =>
+    new Date(d).toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+  const getStatusConfig = (status) =>
+    ({
+      paid: "bg-green-500/15 text-green-400",
+      pending: "bg-yellow-500/15 text-yellow-400",
+      failed: "bg-red-500/15 text-red-400",
+    }[status] || "bg-gray-500/15");
+
+  // ================= SCROLL =================
+  const goToPage = (p) => {
+    const safePage = Math.max(1, Math.min(p, totalPages));
+    setPage(safePage);
+
+    requestAnimationFrame(() => {
+      tableRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   };
 
+  // ================= UI =================
+  if (loading && !orders.length) return <LoadingSkeleton />;
+  if (error && !orders.length) return <ErrorState onRetry={fetchOrders} />;
+
   return (
-    <div className="p-6 h-full flex flex-col bg-gray-900 text-white">
+    <div className="h-screen overflow-y-auto scroll-smooth bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
+      
+      {/* 🔥 SCROLLBAR */}
+      <style>{`
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #888; }
+      `}</style>
 
-      {/* ================= HEADER ================= */}
-      <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-        <h2 className="text-3xl font-bold">Today's Order History</h2>
+      <OrderHeader
+        filteredOrders={filteredOrders}
+        formatCurrency={formatCurrency}
+        metrics={metrics}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        onRefresh={fetchOrders}
+        loading={loading}
+        onExport={() => console.log("export")}
+      />
 
-        <div className="flex gap-3 flex-wrap items-center">
+      <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+        <OrderMetrics metrics={metrics} formatCurrency={formatCurrency} />
 
-          {/* SEARCH */}
-          <div className="relative">
-            <Search className="absolute left-3 top-3 text-gray-400" size={18} />
-            <input
-              type="text"
-              placeholder="Search Order ID or Name..."
-              className="pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+        <OrderFilters
+          dateRange={dateRange}
+          statusFilter={statusFilter}
+          orderTypeFilter={orderTypeFilter}
+          onDateRangeChange={setDateRange}
+          onStatusChange={setStatusFilter}
+          onTypeChange={setOrderTypeFilter}
+        />
 
-          {/* TYPE FILTER */}
-          <div className="flex gap-2">
-            {["all", "dine-in", "takeaway"].map((type) => (
-              <button
-                key={type}
-                onClick={() => setOrderTypeFilter(type)}
-                className={`px-3 py-2 rounded-lg text-sm font-semibold ${
-                  orderTypeFilter === type
-                    ? "bg-orange-500 text-white"
-                    : "bg-gray-800 border border-gray-700 text-gray-300"
-                }`}
-              >
-                {type === "all" ? "All" : type === "dine-in" ? "Dine-In" : "Takeaway"}
-              </button>
-            ))}
-          </div>
-
-          {/* REFRESH */}
-          <button
-            onClick={fetchOrders}
-            className="p-2 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 transition-colors"
-          >
-            <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
-          </button>
+        {/* TABLE */}
+        <div ref={tableRef} className="scroll-mt-32 mb-10">
+          <OrdersTable
+            orders={paginatedOrders}
+            loading={loading}
+            formatCurrency={formatCurrency}
+            formatTime={formatTime}
+            getStatusConfig={getStatusConfig}
+            onViewOrder={setSelectedOrder}
+            onPrintOrder={(o) => console.log(o)}
+            page={page}
+            totalPages={totalPages}
+            totalOrders={filteredOrders.length}
+            onPageChange={goToPage}
+            itemsPerPage={itemsPerPage}
+          />
         </div>
       </div>
 
-      {/* ================= SUMMARY ================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-    <SummaryCard title="Cash Earnings" amount={formatCurrency(totalCash)} color="green-400" />
-<SummaryCard title="Online Earnings" amount={formatCurrency(totalOnline)} color="blue-400" />
-<SummaryCard title="Total Earnings" amount={formatCurrency(totalEarnings)} color="orange-400" />
-<SummaryCard title="Total Customers" amount={totalCustomers} color="purple-400" />
-      </div>
-
-      {/* ================= TABLE ================= */}
-      <div className="bg-gray-800 rounded-xl border border-gray-700 flex-1 overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center h-64 text-gray-400">Loading...</div>
-        ) : filteredOrders.length === 0 ? (
-          <div className="flex items-center justify-center h-64 text-gray-400">
-            No orders found.
-          </div>
-        ) : (
-          <div className="h-full overflow-auto">
-            <table className="min-w-full text-left border-collapse">
-              <thead>
-                <tr className="text-gray-300 uppercase text-xs font-bold">
-                  {[
-                    "Order ID",
-                    "Time",
-                    "Customer",
-                    "Order Type",
-                    "Items",
-                    "Total",
-                    "Method",
-                    "Status",
-                    "Action",
-                  ].map((head, idx) => (
-                    <th key={idx} className="p-4 bg-gray-700 sticky top-0 z-20">{head}</th>
-                  ))}
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-gray-700 text-sm text-gray-300">
-                {filteredOrders.map((order) => (
-                  <tr key={order._id} className="hover:bg-gray-700/50 transition-colors">
-                    <td className="p-4 font-mono text-orange-400 whitespace-nowrap">
-                      #{order._id.slice(-6).toUpperCase()}
-                    </td>
-                    <td className="p-4 whitespace-nowrap">
-                      {new Date(order.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      <div className="text-xs text-gray-500">
-                        {new Date(order.createdAt).toLocaleDateString()}
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div className="font-medium text-white">{order.customerName || "N/A"}</div>
-                      <div className="text-xs text-gray-500">{order.phone || "-"}</div>
-                    </td>
-                    <td className="p-4 whitespace-nowrap">
-                      {order.table ? (
-                        <div className="flex flex-col">
-                          <span className="font-semibold">{order.table.name}</span>
-                          <span className="text-xs bg-blue-600 px-2 py-0.5 rounded-full mt-1 w-fit">Dine-In</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs bg-gray-600 px-2 py-0.5 rounded-full">Takeaway</span>
-                      )}
-                    </td>
-                    <td className="p-4 whitespace-nowrap">{order.items?.length || 0} Items</td>
-                    <td className="p-4 font-bold text-white whitespace-nowrap">₹{order.totalAmount}</td>
-                    <td className="p-4 capitalize whitespace-nowrap">{order.paymentMethod || "N/A"}</td>
-                    <td className="p-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 rounded-full text-xs font-bold border ${getStatusColor(order.paymentStatus)}`}>
-                        {order.paymentStatus}
-                      </span>
-                    </td>
-                    <td className="p-4 whitespace-nowrap">
-                      <button className="p-2 hover:bg-gray-600 rounded text-gray-400 hover:text-white transition-colors">
-                        <Eye size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {selectedOrder && (
+        <OrderModal
+          order={selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+          onPrint={() => console.log(selectedOrder)}
+          formatCurrency={formatCurrency}
+          formatTime={formatTime}
+          getStatusConfig={getStatusConfig}
+        />
+      )}
     </div>
   );
 };
-
-// ================= SUMMARY CARD COMPONENT =================
-const SummaryCard = ({ title, amount, color }) => (
-  <div className="bg-gray-800 border border-gray-700 rounded-xl p-5">
-    <h3 className="text-gray-400 text-sm">{title}</h3>
-    <p className={`text-2xl font-bold mt-2 text-${color}`}>{amount}</p>
-  </div>
-);
 
 export default OrderHistory;

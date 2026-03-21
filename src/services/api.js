@@ -1,7 +1,8 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:5000/api",
+  // baseURL: "https://backendvarun.vercel.app/api",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
   timeout: 30000,
 });
 
@@ -148,11 +149,7 @@ export const taxesAPI = {
   delete: (id) => api.delete(`/taxes/${id}`),
 };
 
-// PAYMENT APIs
-export const paymentAPI = {
-  createOrder: (data) => api.post("/payment/create-order", data),
-  verifyPayment: (data) => api.post("/payment/verify", data),
-};
+
 
 export const menuAPI = {
   getItems: () => api.get("/items"),
@@ -163,5 +160,9 @@ export const menuAPI = {
 export const orderAPI = {
   create: (data) => api.post("/orders", data),
 };
+export const cafeStatusAPI = {
+  get: () => api.get('/cafe-status'),
+  update: (data) => api.put('/cafe-status', data)
+}
 
 export default api;

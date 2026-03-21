@@ -1,7 +1,8 @@
+
 import { useState, useEffect, useMemo } from "react";
 import { itemsAPI, categoriesAPI, tablesAPI, ordersAPI } from "../services/api";
 import { toast } from "react-hot-toast";
-
+import CafeStatus from "../components/CafeStatus/CafeStatus";
 import Header from "../components/home/Header";
 import BannerSlider from "../components/home/BannerSlider";
 import PopularSlider from "../components/home/PopularSlider";
@@ -13,6 +14,7 @@ import PaymentModal from "../components/home/PaymentModal";
 import OrderSuccess from "../components/home/OrderSuccess";
 
 import { ShoppingCart } from "lucide-react";
+
 
 export default function CustomerHome() {
   // ---------------- DATA STATE ----------------
@@ -169,10 +171,11 @@ export default function CustomerHome() {
     );
 
   return (
+    <CafeStatus>
     <div className="min-h-screen bg-gray-50 pb-32 font-sans text-gray-800">
       <Header search={search} setSearch={setSearch} />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-25">
         <BannerSlider />
 
         <PopularSlider items={items} />
@@ -272,5 +275,10 @@ export default function CustomerHome() {
         />
       )}
     </div>
+    </CafeStatus>
   );
 }
+
+
+
+          

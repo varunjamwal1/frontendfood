@@ -1,24 +1,16 @@
 import { useState, useEffect } from "react";
-import { 
-  CheckCircle, 
-  Home, 
-  Copy, 
-  Clock, 
-  Receipt, 
-  Phone, 
-  MapPin,
-  ShoppingBag,
-  Share2,
-  Download
-} from "lucide-react";
 import { toast } from "react-hot-toast";
+import { Check, Copy, Clock, Receipt, Home, ChevronRight } from "lucide-react";
 
-export default function OrderSuccess({ order, onHome }) {
+export default function OrderSuccess({ order = {}, onHome }) {
   const [copied, setCopied] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(10 * 60);
+  const [timeLeft, setTimeLeft] = useState(15 * 60);
 
   useEffect(() => {
-    const timer = setInterval(() => setTimeLeft(prev => (prev <= 1 ? 0 : prev - 1)), 1000);
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    
     return () => clearInterval(timer);
   }, []);
 
@@ -28,183 +20,193 @@ export default function OrderSuccess({ order, onHome }) {
     return `${minutes}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleCopyOrderId = () => {
-    if (order?.orderId) {
-      navigator.clipboard.writeText(order.orderId);
-      setCopied(true);
-      toast.success("Order ID copied!");
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: "Order Confirmation",
-          text: `Your order #${order?.orderId} has been placed successfully!`,
-          url: window.location.href,
+  const handleCopyOrderId = async () => {
+    try {
+      if (order?.orderId && navigator.clipboard) {
+        await navigator.clipboard.writeText(order.orderId);
+        setCopied(true);
+        toast.success("Order ID copied! 📋", {
+          style: { 
+            borderRadius: '100px', 
+            background: '#0f172a', 
+            color: '#fff',
+            fontWeight: '600'
+          }
         });
-        toast.success("Order shared successfully!");
-      } catch (err) {
-        console.error(err);
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = order.orderId;
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        setCopied(true);
+        toast.success("Order ID copied! 📋", {
+          style: { 
+            borderRadius: '100px', 
+            background: '#0f172a', 
+            color: '#fff',
+            fontWeight: '600'
+          }
+        });
+        setTimeout(() => setCopied(false), 2000);
       }
-    } else {
-      handleCopyOrderId();
+    } catch (err) {
+      toast.error("Failed to copy", {
+        style: { borderRadius: '100px' }
+      });
     }
   };
 
-  const handleDownload = () => toast.success("Receipt downloaded!");
+  const formattedDate = order?.createdAt 
+    ? new Date(order.createdAt).toLocaleString("en-US", {
+        weekday: "short",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : new Date().toLocaleString("en-US", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
 
-  const formattedDate = new Date().toLocaleString("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  const orderId = order?.orderId || "N/A";
+  const totalAmount = order?.totalAmount?.toFixed(2) || "0.00";
+  const serviceType = order?.type || 'Takeaway';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 h-screen overflow-y-auto">
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 sm:p-6 pointer-events-none">
+      {/* Deep Immersive Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
-        onClick={onHome} 
+        className="absolute inset-0 bg-slate-900/60 backdrop-blur-2xl animate-[fade-in-up_0.5s_ease-out_forwards] pointer-events-auto" 
+        onClick={onHome}
+        role="button"
+        aria-label="Close success modal"
       />
 
-      {/* Success Card */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto p-6 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-300">
-        
-        {/* Icon */}
-        <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CheckCircle size={48} className="text-green-600" />
+      {/* Floating Success Card */}
+      <div 
+        className="relative bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-[0_40px_100px_rgba(0,0,0,0.3)] dark:shadow-[0_40px_100px_rgba(0,0,0,0.6)] border border-slate-100 dark:border-slate-800 w-full max-w-lg mx-auto p-8 sm:p-10 lg:p-12 transform animate-[fade-in-up_0.6s_ease-out_forwards] pointer-events-auto"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-labelledby="order-success-title"
+        aria-describedby="order-success-description"
+      >
+        {/* Animated Celebration Icon */}
+        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-500/10 dark:to-emerald-600/10 flex items-center justify-center mx-auto mb-8 shadow-2xl ring-8 ring-emerald-100/50 dark:ring-emerald-500/20 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-transparent animate-[spin_20s_linear_infinite]"></div>
+          <Check size={56} className="text-emerald-500 relative z-10 drop-shadow-lg" strokeWidth={3} />
         </div>
 
-        {/* Title */}
-        <h2 className="text-2xl font-bold text-gray-800 text-center mb-2">
-          Order Placed Successfully!
-        </h2>
-        <p className="text-gray-500 text-center mb-6">Thank you for your order</p>
-
-        {/* Timer */}
-        <div className="bg-orange-50 rounded-lg p-3 mb-4 flex items-center justify-center gap-2">
-          <Clock size={18} className="text-orange-600" />
-          <span className="text-sm font-medium text-orange-700">
-            Estimated preparation time: {formatTime(timeLeft)}
-          </span>
-        </div>
-
-        {/* Order Details */}
-        <div className="bg-gray-50 rounded-xl p-4 mb-6 space-y-3">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-500 flex items-center gap-1">
-              <Receipt size={14} /> Order ID
-            </span>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-lg">#{order?.orderId || "12345"}</span>
-              <button
-                onClick={handleCopyOrderId}
-                className="p-1.5 hover:bg-gray-200 rounded transition-colors cursor-pointer"
-                title="Copy Order ID"
-              >
-                {copied ? <CheckCircle size={16} className="text-green-600" /> : <Copy size={16} className="text-gray-500" />}
-              </button>
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-500 flex items-center gap-1">
-              <Clock size={14} /> Date & Time
-            </span>
-            <span className="text-sm font-medium text-gray-700">{formattedDate}</span>
-          </div>
-
-          {order?.orderType && (
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-500">Order Type</span>
-              <span className="text-sm font-medium text-gray-700">
-                {order.orderType === "dine-in" ? "🍽️ Dine In" : "📦 Takeaway"}
-              </span>
-            </div>
-          )}
-
-          {order?.table && (
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-500 flex items-center gap-1">
-                <MapPin size={14} /> Table
-              </span>
-              <span className="text-sm font-medium text-gray-700">Table {order.table}</span>
-            </div>
-          )}
-
-          {order?.customerName && (
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-500 flex items-center gap-1">
-                <Phone size={14} /> Customer
-              </span>
-              <span className="text-sm font-medium text-gray-700">{order.customerName}</span>
-            </div>
-          )}
-
-          <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-            <span className="text-sm font-bold text-gray-700">Total Amount</span>
-            <span className="text-xl font-bold text-orange-600">
-              ₹{order?.totalAmount?.toFixed(2) || "0.00"}
-            </span>
-          </div>
-        </div>
-
-        {/* Items Summary */}
-        {order?.items && order.items.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              <ShoppingBag size={16} /> Items Ordered ({order.items.length})
-            </h3>
-            <div className="bg-gray-50 rounded-lg p-3 max-h-44 overflow-y-auto">
-              {order.items.map((item, index) => (
-                <div key={index} className="flex justify-between text-sm py-1 border-b border-gray-200 last:border-0">
-                  <span className="text-gray-700">{item.qty}x {item.name}</span>
-                  <span className="text-gray-500">₹{(item.price * item.qty).toFixed(2)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Thank You Note */}
-        <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-lg p-4 mb-6 text-center">
-          <p className="text-sm text-gray-700 font-semibold">
-            Thank you for choosing Varun Store!<br/>
-            We appreciate your business. Enjoy your meal! 🍽️
+        {/* Title & Confetti Vibe */}
+        <div className="text-center mb-10">
+          <h1 id="order-success-title" className="text-3xl lg:text-4xl font-black bg-gradient-to-r from-slate-900 to-slate-800 dark:from-white dark:to-slate-200 bg-clip-text text-transparent mb-3 tracking-tight">
+            Order Confirmed
+          </h1>
+          <p id="order-success-description" className="text-lg font-medium text-slate-600 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+            Your craft is being prepared with precision. We'll have it ready for you shortly.
           </p>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-3 mb-4 flex-wrap">
-          <button
-            onClick={onHome}
-            className="flex-1 bg-orange-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-orange-700 transition-colors cursor-pointer"
-          >
-            <Home size={20} /> Back to Menu
-          </button>
-
-          <button
-            onClick={handleShare}
-            className="px-4 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors cursor-pointer"
-            title="Share Order"
-          >
-            <Share2 size={20} />
-          </button>
-
-          <button
-            onClick={handleDownload}
-            className="px-4 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors cursor-pointer"
-            title="Download Receipt"
-          >
-            <Download size={20} />
-          </button>
+        {/* Live Prep Timer Card */}
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-900/50 rounded-[2rem] p-8 mb-10 border border-slate-100/50 dark:border-slate-700/50 relative overflow-hidden group hover:shadow-xl transition-all duration-500">
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl"></div>
+          <div className="relative z-10 flex flex-col items-center justify-center text-center">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-ping"></div>
+              <Clock size={18} className="text-emerald-500 shrink-0" />
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Estimated Prep</span>
+            </div>
+            <div className="text-5xl lg:text-6xl font-black bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 dark:from-emerald-400 dark:to-emerald-500 bg-clip-text text-transparent tracking-[-0.05em] mb-2">
+              {formatTime(timeLeft)}
+            </div>
+            <div className="text-sm text-slate-500 dark:text-slate-400 font-medium">minutes remaining</div>
+          </div>
         </div>
 
-        <p className="text-xs text-gray-500 text-center flex items-center justify-center gap-1">
-          <Clock size={12} /> Estimated preparation time: 15-20 minutes
-        </p>
+        {/* Order Details Card */}
+        <div className="bg-white/80 dark:bg-slate-800/60 backdrop-blur-xl rounded-[2rem] p-8 mb-10 border border-slate-100/50 dark:border-slate-700/50 shadow-lg hover:shadow-2xl transition-all duration-300">
+          <div className="flex items-center justify-between pb-6 mb-6 border-b border-slate-100/50 dark:border-slate-700/50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                <Receipt size={18} className="text-white" />
+              </div>
+              <div>
+                <h3 className="font-bold text-xl text-slate-900 dark:text-white">Receipt #{orderId}</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Order placed successfully</p>
+              </div>
+            </div>
+            <button 
+              onClick={handleCopyOrderId}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm uppercase tracking-wide transition-all duration-300 active:scale-95 shadow-sm ${
+                copied 
+                  ? 'bg-emerald-500 text-white shadow-emerald-500/25 hover:shadow-emerald-500/40' 
+                  : 'bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 shadow-slate-200/50 dark:shadow-slate-700/50 hover:shadow-slate-300/60'
+              }`}
+              title="Copy Order ID to clipboard"
+              aria-label="Copy order ID"
+            >
+              {copied ? (
+                <>
+                  <Check size={16} className="w-4 h-4" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy size={16} className="w-4 h-4" />
+                  Copy ID
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="space-y-4 mb-8">
+            <div className="flex justify-between items-center py-3 px-4 bg-slate-50/50 dark:bg-slate-700/30 rounded-xl">
+              <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Placed</span>
+              <span className="font-bold text-slate-900 dark:text-white text-sm">{formattedDate}</span>
+            </div>
+            
+            <div className="flex justify-between items-center py-3 px-4 bg-indigo-50/50 dark:bg-indigo-500/10 rounded-xl">
+              <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Service</span>
+              <span className={`font-bold text-xs px-3 py-1.5 rounded-full uppercase tracking-wider ${
+                serviceType === 'Dine-in' 
+                  ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' 
+                  : 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300'
+              }`}>
+                {serviceType}
+              </span>
+            </div>
+          </div>
+
+          <div className="pt-6 border-t border-slate-100/50 dark:border-slate-700/50">
+            <div className="flex justify-between items-baseline pb-4">
+              <span className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Total Paid</span>
+              <span className="text-3xl font-black bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-600 dark:from-white dark:to-emerald-400 bg-clip-text text-transparent tracking-[-0.02em]">
+                ${totalAmount}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Button */}
+        <button
+          onClick={onHome}
+          className="group relative w-full h-16 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 dark:from-indigo-500 dark:via-purple-500 dark:to-indigo-600 hover:from-slate-800 hover:via-slate-700 hover:to-slate-800 dark:hover:from-indigo-400 dark:hover:via-purple-400 dark:hover:to-indigo-400 text-white font-black text-xl rounded-[2.5rem] flex items-center justify-center gap-3 shadow-[0_15px_35px_rgba(0,0,0,0.2)] hover:shadow-[0_25px_50px_rgba(0,0,0,0.25)] transition-all duration-500 active:scale-[0.97] overflow-hidden"
+        >
+          <span className="relative z-10 tracking-tight">Back to Menu</span>
+          <ChevronRight size={24} className="group-hover:translate-x-1 transition-transform duration-300 relative z-10" strokeWidth={2.5} />
+          <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent -skew-x-12 -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-700" />
+        </button>
+
+        {/* Premium Badge */}
+        <div className="mt-8 pt-6 border-t border-slate-100/50 dark:border-slate-700/50 flex items-center justify-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+          <Check size={14} />
+          Securely Processed • Ready in {formatTime(timeLeft)}
+        </div>
       </div>
     </div>
   );
